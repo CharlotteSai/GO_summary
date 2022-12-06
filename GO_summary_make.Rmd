@@ -1,0 +1,54 @@
+---
+title: "GO Summary"
+output: html_document
+date: "2022-12-05"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## GO summary generation along with `GO.db` update
+This summary is based on `GO summary` from **Stevie Pederson** at https://uofabioinformaticshub.github.io/summaries2GO/MakeSummaries
+
+```{r setup}
+library(GO.db)
+library(graph)
+library(dnet)
+library(magrittr)
+library(tidyverse)
+library(pander)
+library(scales)
+library(plotly)
+library(limma)
+```
+
+```{r}
+graphs <- c(BP = "bp", CC = "cc", MF = "mf") %>%
+    lapply(makeGOGraph) %>%
+    lapply(function(x){removeNode("all", x)}) %>%
+    lapply(dDAGreverse)
+
+# saveRDS(graphs,"GO_graph_3.15GOdb_build.rds")
+```
+
+```{r}
+goSummaries <- lapply(graphs, function(x){
+    lng <- dDAGlevel(x, "longest_path") - 1
+    shrt <- dDAGlevel(x, "shortest_path") - 1
+    tips <- dDAGtip(x)
+    tibble(
+        id = unique(c(names(lng), names(shrt))),
+        shortest_path = shrt,
+        longest_path = lng,
+        terminal_node = id %in% tips
+        )
+}) %>%
+    bind_rows() %>%
+    mutate(ontology = Ontology(id))
+
+saveRDS(goSummaries, "GOdb3_15.build_GOSummary.rds")
+```
+
